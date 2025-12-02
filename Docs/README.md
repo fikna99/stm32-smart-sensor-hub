@@ -1,5 +1,6 @@
 # 📘 STM32 Smart Sensor Hub  
 ### A Modular, Power-Aware Firmware System with CLI Dashboard, Logging Framework, and Sensor Abstraction  
+
 **Target MCU:** STM32 Nucleo-F446RE  
 **Toolchain:** STM32CubeIDE / arm-none-eabi-gcc  
 **UART Interface:** ST-LINK VCP (typically USART2 @ 115200)
@@ -15,26 +16,19 @@ The **STM32 Smart Sensor Hub** is a professionally structured embedded firmware 
 - Runtime-configurable structured logging framework  
 - Interactive UART CLI (dashboard-style)  
 - Power management system  
-- Simulated sensor abstraction (real sensors later)  
+- Sensor abstraction (simulated sensor now, real sensors later)  
+- **Dynamic sensor sampling period that adapts to the current power mode**  
 - GitHub Actions CI (compile-only)  
 - Full documentation  
 - Clean, maintainable C code with Doxygen-ready comments  
 
-This repository is built just like a real production firmware codebase.
+This repository is structured like a real production firmware codebase.
 
-## 🚀 Current Status (Phase 2)
-
-- **Logging subsystem** over UART2 with timestamps and metadata.
-- **Cooperative Task Manager** for periodic task execution.
-- **Heartbeat Task** toggling the on-board LED and logging activity.
-- **Generic Sensor Interface** abstraction (`SensorIF_t`, `SensorData_t`).
-- **Simulated Temperature Sensor** generating a smooth sine-wave signal.
-- **Sensor Sampling Task** running every 1 second and logging structured readings.
 ---
 
 ## 🏗️ Architecture at a Glance
 
-```
+```text
 stm32-smart-sensor-hub/
 ├── Core/                     # Cube-generated startup, HAL, clock config
 ├── Drivers/                  # HAL drivers
@@ -48,21 +42,22 @@ stm32-smart-sensor-hub/
 
 ### Layer Summary
 
-| Layer | Purpose |
-|-------|---------|
-| **Core/** | System startup, HAL initialization, ISR handlers |
-| **app/** | Main application logic + cooperative task scheduler |
-| **common/** | Logging subsystem, CLI interpreter, helpers |
-| **sensors/** | Sensor interface API + simulated sensor backend |
-| **power/** | Power mode manager (Active/Idle/Sleep/Stop) |
-| **docs/** | Architecture docs, release notes |
-| **.github/** | CI pipeline (ARM GCC build verification) |
+| Layer      | Purpose                                                        |
+|------------|----------------------------------------------------------------|
+| **Core/**  | System startup, HAL initialization, ISR handlers               |
+| **app/**   | Main application logic + cooperative task scheduler            |
+| **common/**| Logging subsystem, CLI interpreter, helpers                    |
+| **sensors/** | Sensor interface API + simulated sensor backend             |
+| **power/** | Power mode manager (Active/Idle/Sleep/Stop)                    |
+| **docs/**  | Architecture docs, release notes                               |
+| **.github/** | CI pipeline (ARM GCC build verification)                    |
 
 ---
 
 ## 🧩 Key Features
 
 ### ✔️ Cooperative Task Scheduler  
+
 Tasks include:
 
 - `Heartbeat`  
@@ -70,16 +65,16 @@ Tasks include:
 - `PowerManager`  
 - `CLI`  
 
-Each task has its own period and logs its timing.
+Each task has its own period and logs its execution timing.
 
 ---
 
 ### ✔️ Structured Logging Framework  
 
-Format:
+Log format:
 
-```
-[00123456 ms][INF][../app/app_main.c:152][App_TaskSensorSample] Value=23.1C
+```text
+[00123456 ms][INF][../app/app_main.c:152][App_TaskSensorSample] Value=23.1 C
 ```
 
 Supports:
@@ -87,20 +82,21 @@ Supports:
 - DEBUG / INFO / WARN / ERROR  
 - Runtime filter control  
 - CLI-controlled pause/resume  
-- Auto-restores CLI prompt after each log line  
+- Automatic CLI prompt redraw after each log line  
 
 ---
 
 ### ✔️ UART CLI Dashboard  
 
-Commands:
+Example commands:
 
-```
-help  
-log pause  
-log resume  
-log info/debug/error  
-pmode idle/sleep/stop  
+```text
+help
+log pause
+log resume
+log info
+log debug
+pmode idle
 status
 ```
 
@@ -108,76 +104,95 @@ Features:
 
 - Non-blocking input  
 - Backspace support  
-- Dashboard-style always-visible prompt  
-- Logs never overwrite CLI command entry  
+- Dashboard-style, always-visible prompt  
+- Logs never overwrite the CLI command entry line  
 
 ---
 
 ### ✔️ Sensor Abstraction Layer  
 
-```
+```c
 typedef struct {
     bool (*init)(void);
     bool (*read)(SensorData_t *out);
 } SensorIF_t;
 ```
 
-Currently uses a simulated temp sensor.  
+Currently uses a simulated temperature sensor (`sensor_sim_temp.c/.h`)  
+plugged into this interface.
+
 Later you can plug in:
 
 - I²C sensor  
 - SPI sensor  
 - ADC sensor  
-- Virtual sensor for testing  
+- Additional simulated/virtual sensors for testing  
 
 ---
 
-### ✔️ Power Management Framework  
+### ✔️ Power Management Framework + Dynamic Sampling
 
-Tracks:
+Power modes:
 
-- power mode  
-- idle cycles  
-- transition logs  
+- `POWER_MODE_ACTIVE`
+- `POWER_MODE_IDLE`
+- `POWER_MODE_SLEEP`
+- `POWER_MODE_STOP`
 
-Future versions will include **real STM32 low-power mode entry**.
+The **SensorSample** task period automatically adapts to the current power mode:
+
+```c
+#define SENSOR_PERIOD_ACTIVE_MS   (1000U)   // 1 second in ACTIVE mode
+#define SENSOR_PERIOD_IDLE_MS     (5000U)   // 5 seconds in IDLE mode
+#define SENSOR_PERIOD_SLEEP_MS    (30000U)  // 30 seconds in SLEEP mode
+#define SENSOR_PERIOD_STOP_MS     (0U)      // 0 => no sampling in STOP
+```
+
+- In **STOP** mode, sensor sampling is completely disabled.  
+- The CLI `status` command reports the **effective sensor sample period**.
+
+This models how a real low-power system would adapt workload based on its power budget.
 
 ---
 
 ### ✔️ GitHub Actions CI
 
 - Installs ARM GCC  
-- Builds firmware  
+- Builds firmware on Ubuntu  
 - Verifies compilation on every push & PR  
 
 ---
 
 ## 🛠️ Build & Flash Instructions
 
-1. Open in STM32CubeIDE  
-2. Select **Build**  
-3. Debug → Flash  
-4. Open serial monitor @ 115200 baud  
-5. Type `help` to see commands  
+1. Open the project in **STM32CubeIDE**.  
+2. Build the project (Debug or Release).  
+3. Flash the firmware to the **Nucleo-F446RE**.  
+4. Open a serial monitor at **115200 baud**, 8N1.  
+5. Reset the board and look for the CLI banner.  
+6. Type `help` to see available commands.
 
 ---
 
 ## 🖥️ Example CLI Session
 
-```
+```text
 Smart Sensor Hub CLI ready.
 Type 'help' for commands.
 
 > log info
-[00001234 ms][INF][Heartbeat] LED toggled
-[00002234 ms][INF][SensorSample] Value=23.1 C
->
-```
+[00001234 ms][INF][../app/app_main.c:129][App_TaskHeartbeat] Heartbeat task toggled LED
+[00002234 ms][INF][../app/app_main.c:152][App_TaskSensorSample] SensorSample: value=23.10 C, timestamp=2234 ms
 
-Pause logs to inspect:
+> pmode sleep
+Requested power mode change: sleep
 
-```
-> log pause
+> status
+Status:
+  Task logging: ENABLED
+  LogLevel: 1 (0=DEBUG,1=INFO,2=WARN,3=ERROR)
+  PowerMode: 2 (0=ACTIVE,1=IDLE,2=SLEEP,3=STOP)
+  Sensor sample period: 30000 ms
 ```
 
 ---
@@ -186,15 +201,16 @@ Pause logs to inspect:
 
 Included in `/docs`:
 
-- **README.md** (root description)  
-- **ARCHITECTURE.md**  
-- **RELEASE_NOTES.md**  
+- **README.md** (this file)  
+- **ARCHITECTURE.md** (layered design)  
+- **RELEASE_NOTES.md** (per-phase changes)  
+- **CLI_COMMANDS.md** (detailed CLI behavior and examples)  
 
-All are auto-updated each phase.
+All are updated at each project phase.
 
 ---
 
-## 📌 Current Version: v0.3.0
+## 📌 Current Version: v0.4.0
 
 Includes:
 
@@ -202,19 +218,21 @@ Includes:
 - Logging framework enhancements  
 - Power Manager foundation  
 - Task Manager improvements  
+- Sensor abstraction and simulated sensor  
+- **Dynamic sensor sampling based on power mode (ACTIVE/IDLE/SLEEP/STOP)**  
 - GitHub workflow  
 - Full documentation  
 
 ---
 
-## 🧭 Roadmap
+## 🧭 Roadmap (Planned Phases)
 
-- Phase 4 → Real I²C sensor integration  
-- Phase 5 → Real STM32 low-power mode  
-- Phase 6 → Event/state machine  
-- Phase 7 → Flash/SD logging  
-- Phase 8 → BLE or USB layer  
-- Phase 9 → External wireless dashboard  
+- Phase 5 → Real I²C sensor integration  
+- Phase 6 → Real STM32 low-power mode entry/wakeup  
+- Phase 7 → Event/state machine on top of tasks  
+- Phase 8 → Flash/SD logging or host-side tooling  
+- Phase 9 → BLE or USB link to external dashboard  
+- Phase 10 → Remote telemetry / visualization  
 
 ---
 
@@ -222,19 +240,18 @@ Includes:
 
 This project demonstrates:
 
-- Embedded architecture  
-- Modular C design  
-- Reusable driver abstraction  
-- Task scheduling  
-- Power management  
-- CLI protocol handling  
-- Logging frameworks  
-- CI/CD discipline  
+- Embedded architecture & modular design  
+- Reusable driver and sensor abstraction  
+- Task scheduling and power management  
+- **Power-aware behavior (dynamic sensor sampling vs power mode)**  
+- CLI protocol handling and UX considerations  
+- Logging frameworks with runtime control  
+- CI/CD discipline for embedded firmware  
 
-Ideal for Embedded/Firmware engineer roles.
+Ideal to showcase for **Embedded/Firmware Engineer** roles.
 
 ---
 
 ## 📝 License
 
-MIT 
+MIT

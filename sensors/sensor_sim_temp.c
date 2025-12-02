@@ -5,6 +5,8 @@
  * This module provides a synthetic temperature sensor used in Phase 2.
  * It generates a smooth, time-varying signal based on a sine wave to
  * emulate realistic sensor behavior without requiring actual hardware.
+ *
+ * @ingroup sensors
  */
 
 #include "sensor_sim_temp.h"

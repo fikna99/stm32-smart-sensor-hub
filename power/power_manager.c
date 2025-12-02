@@ -1,6 +1,10 @@
 /**
  * @file power_manager.c
  * @brief Implementation of the power management framework.
+ *
+ * Tracks current and requested power modes and logs transitions.
+ *
+ * @ingroup power
  */
 
 #include "power_manager.h"

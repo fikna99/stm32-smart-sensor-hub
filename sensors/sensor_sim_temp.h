@@ -5,6 +5,8 @@
  * The implementation of this interface is provided in
  * sensor_sim_temp.c and is exposed to the application via
  * Sensor_GetInterface() declared in sensor_if.h.
+ *
+ * @ingroup sensors
  */
 
 #ifndef SENSOR_SIM_TEMP_H

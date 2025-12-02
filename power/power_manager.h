@@ -5,6 +5,8 @@
  * This module provides a central place to track the system power mode,
  * implement simple policies, and eventually integrate STM32 low-power
  * features (sleep/stop modes, wake-up sources, etc.).
+ *
+ * @ingroup power
  */
 
 #ifndef POWER_MANAGER_H
@@ -16,6 +18,13 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+
+/**
+ * @defgroup power Power Management
+ * @brief High-level power mode management for the Smart Sensor Hub.
+ * @ingroup app
+ * @{
+ */
 
 /**
  * @brief High-level power modes for the system.
@@ -37,6 +46,8 @@ typedef enum
  * This function resets internal state and sets the initial power mode
  * to POWER_MODE_ACTIVE. It should be called once during system startup
  * before the Power Manager task begins executing.
+ *
+ * @return None.
  */
 void PowerManager_Init(void);
 
@@ -48,6 +59,8 @@ void PowerManager_Init(void);
  * policies or constraints.
  *
  * @param mode Desired power mode.
+ *
+ * @return None.
  */
 void PowerManager_RequestMode(PowerMode_t mode);
 
@@ -68,8 +81,12 @@ PowerMode_t PowerManager_GetCurrentMode(void);
  *
  * In Phase 3, it only logs state changes; actual low-power entry will
  * be implemented in later phases.
+ *
+ * @return None.
  */
 void PowerManager_Update(void);
+
+/** @} */ /* end of power group */
 
 #ifdef __cplusplus
 }

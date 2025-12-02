@@ -4,6 +4,8 @@
  *
  * The CLI provides runtime control for logging and power management,
  * and a human-friendly way to interact with the firmware.
+ *
+ * @ingroup cli
  */
 
 #ifndef CLI_H
@@ -16,12 +18,21 @@ extern "C" {
 #include "stm32f4xx_hal.h"
 
 /**
+ * @defgroup cli Command Line Interface
+ * @brief UART-based interactive interface for the Smart Sensor Hub.
+ * @ingroup common
+ * @{
+ */
+
+/**
  * @brief Initialize the CLI module.
  *
  * Must be called once after the UART handle is configured. Prints a
  * welcome banner and prompt.
  *
  * @param huart Pointer to the UART handle used for CLI I/O.
+ *
+ * @return None.
  */
 void CLI_Init(UART_HandleTypeDef *huart);
 
@@ -31,6 +42,8 @@ void CLI_Init(UART_HandleTypeDef *huart);
  * Should be called frequently (e.g. every 20 ms) from a scheduled task.
  * Polls the UART for incoming characters, builds command lines, and
  * executes commands when a full line is received.
+ *
+ * @return None.
  */
 void CLI_Process(void);
 
@@ -42,6 +55,8 @@ void CLI_Process(void);
  *
  * @param fmt printf-style format string.
  * @param ... Arguments for the format string.
+ *
+ * @return None.
  */
 void CLI_Print(const char *fmt, ...);
 
@@ -50,8 +65,12 @@ void CLI_Print(const char *fmt, ...);
  *
  * Implemented in cli.c and invoked from log.c (weak hook) to maintain a
  * dashboard-like CLI where the input line stays clean at the bottom.
+ *
+ * @return None.
  */
 void CLI_OnExternalOutput(void);
+
+/** @} */ /* end of cli group */
 
 #ifdef __cplusplus
 }

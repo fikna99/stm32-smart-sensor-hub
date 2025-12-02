@@ -1,12 +1,29 @@
+# Release Notes
+
+## v0.4.0 – Dynamic Sensor Sampling Based on Power Mode
+
+### Added
+
+- **Power-mode-aware sensor sampling**
+  - The `SensorSample` task now adjusts its period based on the current `PowerMode_t`.
+  - New configuration constants:
+    - `SENSOR_PERIOD_ACTIVE_MS   (1000U)`   – 1 second in ACTIVE mode
+    - `SENSOR_PERIOD_IDLE_MS     (5000U)`   – 5 seconds in IDLE mode
+    - `SENSOR_PERIOD_SLEEP_MS    (30000U)`  – 30 seconds in SLEEP mode
+    - `SENSOR_PERIOD_STOP_MS     (0U)`      – 0 => no sampling in STOP
+  - In `POWER_MODE_STOP`, sensor sampling is completely disabled.
+
+- **Status reporting of sample period**
+  - The `status` CLI command now reports the **effective sensor sample period** derived from the current power mode.
+
+### Rationale
+
+This phase links the abstract power management layer to real, observable
+behavior in the system (sensor sampling frequency). It demonstrates how
+embedded firmware can gracefully scale back activity as the system moves
+into deeper power-saving states.
 
 ---
-
-## 3️⃣ docs/RELEASE_NOTES.md
-
-Replace `docs/RELEASE_NOTES.md` with:
-
-```md
-# Release Notes
 
 ## v0.3.0 – Power Manager, CLI Dashboard, and CI
 
@@ -15,7 +32,7 @@ Replace `docs/RELEASE_NOTES.md` with:
 - **Power Manager Module**
   - New `power/` folder with `power_manager.c/.h`
   - Abstract power modes: `ACTIVE`, `IDLE`, `SLEEP`, `STOP`
-  - Tracks current and requested mode
+  - Tracks current and requested modes
   - Logs mode transitions and counts idle cycles
 
 - **CLI (Command Line Interface)**
@@ -52,14 +69,15 @@ Replace `docs/RELEASE_NOTES.md` with:
 
 ### Added
 
-- `sensors/` module:
-  - `sensor_if.c/.h` with `SensorIF_t` abstraction
-  - Simulated temperature sensor implementation
+- **Sensor Abstraction Layer**
+  - `sensors/sensor_if.h` with `SensorIF_t` abstraction
+  - Simulated temperature sensor implementation:
+    - `sensors/sensor_sim_temp.c/.h`
   - Central function `Sensor_GetInterface()` to obtain the active interface
 
-- `SensorSample` task:
+- **SensorSample Task**
   - Periodically reads data from the sensor interface
-  - Logs value and timestamp via logging subsystem
+  - Logs value and timestamp via the logging subsystem
 
 ### Changed
 
@@ -74,7 +92,7 @@ Replace `docs/RELEASE_NOTES.md` with:
 
 - STM32CubeIDE project targeting Nucleo-F446RE
 - Task Manager:
-  - Basic cooperative scheduler in `app_task_manager.c`
+  - Basic cooperative scheduler in `app/app_task_manager.c`
   - `Heartbeat` task that toggles the on-board LED
 - Logging subsystem:
   - UART-based log output with timestamp and severity

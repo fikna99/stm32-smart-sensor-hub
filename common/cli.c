@@ -1,15 +1,23 @@
 /**
  * @file cli.c
  * @brief Simple UART-based command line interface implementation.
+ *
+ * Implements a line-oriented command interpreter on top of a UART
+ * peripheral, providing commands for logging control, power mode
+ * management, and system status reporting.
+ *
+ * @ingroup cli
  */
 
 #include "cli.h"
 #include "log.h"
 #include "power_manager.h"
+#include "app_config.h"
 
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 /**
  * @brief Maximum length of a single CLI input line (excluding terminator).
@@ -31,13 +39,6 @@ static char s_lineBuffer[CLI_MAX_LINE_LENGTH];
  */
 static uint32_t s_lineIndex = 0U;
 
-/* Forward declarations of internal helper functions. */
-static void CLI_HandleLine(char *line);
-static void CLI_SendString(const char *str);
-static void CLI_PrintPrompt(void);
-static void CLI_ToLower(char *str);
-static void CLI_Trim(char *str);
-
 /**
  * @brief Track whether task logging is currently paused via CLI.
  */
@@ -46,9 +47,46 @@ static bool s_logPaused = false;
 /**
  * @brief Previous logging state saved when pause was requested.
  */
-static bool s_prevLogEnabled = false;
-static LogLevel_t s_prevLogLevel = LOG_LEVEL_INFO;
+static bool       s_prevLogEnabled = false;
+static LogLevel_t s_prevLogLevel   = LOG_LEVEL_INFO;
 
+/* Forward declarations of internal helper functions. */
+
+/**
+ * @brief Process a completed input line and execute the corresponding command.
+ *
+ * @param line Null-terminated input line string. May be modified in-place.
+ */
+static void CLI_HandleLine(char *line);
+
+/**
+ * @brief Send a null-terminated string over the CLI UART.
+ *
+ * @param str Pointer to a null-terminated string.
+ */
+static void CLI_SendString(const char *str);
+
+/**
+ * @brief Print the CLI prompt.
+ *
+ * Typically called after processing a command or when the user
+ * presses Enter on an empty line.
+ */
+static void CLI_PrintPrompt(void);
+
+/**
+ * @brief Convert a string to lower case in-place.
+ *
+ * @param str Pointer to a modifiable null-terminated string.
+ */
+static void CLI_ToLower(char *str);
+
+/**
+ * @brief Trim leading and trailing whitespace from a string in-place.
+ *
+ * @param str Pointer to a modifiable null-terminated string.
+ */
+static void CLI_Trim(char *str);
 
 /* ------------------------------------------------------------------------- */
 
@@ -185,7 +223,8 @@ static void CLI_Trim(char *str)
     }
 
     char *end = start + strlen(start);
-    while ((end > start) && ((*(end - 1) == ' ') || (*(end - 1) == '\t')))
+    while ((end > start) && (((unsigned char)*(end - 1U) == ' ') ||
+                             ((unsigned char)*(end - 1U) == '\t')))
     {
         end--;
     }
@@ -355,10 +394,29 @@ static void CLI_HandleLine(char *line)
         LogLevel_t  level  = Log_GetLevel();
         bool        enable = Log_IsEnabled();
 
+        uint32_t period_ms = 0U;
+        switch (mode)
+        {
+            case POWER_MODE_ACTIVE:
+                period_ms = SENSOR_PERIOD_ACTIVE_MS;
+                break;
+            case POWER_MODE_IDLE:
+                period_ms = SENSOR_PERIOD_IDLE_MS;
+                break;
+            case POWER_MODE_SLEEP:
+                period_ms = SENSOR_PERIOD_SLEEP_MS;
+                break;
+            case POWER_MODE_STOP:
+            default:
+                period_ms = SENSOR_PERIOD_STOP_MS;
+                break;
+        }
+
         CLI_Print("\r\nStatus:\r\n");
         CLI_Print("  Task logging: %s\r\n", enable ? "ENABLED" : "DISABLED");
         CLI_Print("  LogLevel: %d (0=DEBUG,1=INFO,2=WARN,3=ERROR)\r\n", (int)level);
         CLI_Print("  PowerMode: %d (0=ACTIVE,1=IDLE,2=SLEEP,3=STOP)\r\n", (int)mode);
+        CLI_Print("  Sensor sample period: %lu ms\r\n", (unsigned long)period_ms);
         return;
     }
 

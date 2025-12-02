@@ -1,6 +1,17 @@
 /**
  * @file app_main.c
  * @brief Application main logic for Smart Sensor Hub.
+ * @ingroup app
+ *
+ * This module wires together the core subsystems of the Smart Sensor Hub:
+ * - Cooperative scheduler (task manager)
+ * - Logging subsystem
+ * - Power manager
+ * - Sensor abstraction layer
+ * - CLI interface
+ *
+ * It defines and registers periodic tasks that demonstrate a power-aware,
+ * sensor-driven application on STM32.
  */
 
 #include "app_main.h"
@@ -8,10 +19,17 @@
 #include "log.h"
 #include "stm32f4xx_hal.h"
 #include "sensor_if.h"
-#include "power_manager.h"   /**< New include for Phase 3. */
+#include "power_manager.h"
 #include "cli.h"
+#include "app_config.h"
 
-/* Forward declaration of the heartbeat task function. */
+/* ------------------------------------------------------------------------- */
+/* Forward declarations                                                      */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * @brief Periodic heartbeat task that toggles the LED and logs a message.
+ */
 static void App_TaskHeartbeat(void);
 
 /**
@@ -19,8 +37,8 @@ static void App_TaskHeartbeat(void);
  *
  * This task retrieves the currently selected sensor interface (simulated in
  * Phase 2), performs a measurement, and logs the structured data including
- * timestamp and sensor value. It runs at a fixed interval defined by its
- * task descriptor.
+ * timestamp and sensor value. It runs at an effective interval determined
+ * by both its scheduler period and the current power mode.
  */
 static void App_TaskSensorSample(void);
 
@@ -33,7 +51,18 @@ static void App_TaskSensorSample(void);
  */
 static void App_TaskPowerManager(void);
 
+/**
+ * @brief Periodic wrapper around CLI processing.
+ *
+ * This task periodically invokes CLI_Process() to handle incoming UART
+ * characters and dispatch CLI commands. It is scheduled at a relatively
+ * high rate to keep the UI responsive.
+ */
 static void App_TaskCli(void);
+
+/* ------------------------------------------------------------------------- */
+/* Task descriptors                                                          */
+/* ------------------------------------------------------------------------- */
 
 /**
  * @brief Descriptor for the heartbeat task.
@@ -53,16 +82,16 @@ static AppTaskDescriptor_t s_heartbeatTask =
 /**
  * @brief Task descriptor for the Sensor Sampling task.
  *
- * This task samples the sensor once per second and logs the measured value.
- * It acts as the foundation for future real hardware sensors (I2C/SPI) and
- * edge-processing features such as filtering or anomaly detection.
+ * This task periodically considers sampling the sensor, but the actual
+ * sampling interval is power-aware and controlled by App_TaskSensorSample()
+ * using the periods defined in @ref app_config.
  */
 static AppTaskDescriptor_t s_sensorTask =
 {
-    .name       = "SensorSample",  /**< Human-readable task name. */
-    .function   = App_TaskSensorSample, /**< Task entry function. */
-    .period_ms  = 1000U,           /**< Execute once every 1000 ms. */
-    .lastRun_ms = 0U               /**< Populated at task registration. */
+    .name       = "SensorSample",        /**< Human-readable task name.         */
+    .function   = App_TaskSensorSample,  /**< Task entry function.              */
+    .period_ms  = 1000U,                 /**< Scheduler tick for this task.     */
+    .lastRun_ms = 0U                     /**< Populated at task registration.   */
 };
 
 /**
@@ -79,6 +108,9 @@ static AppTaskDescriptor_t s_powerTask =
     .lastRun_ms = 0U
 };
 
+/**
+ * @brief Task descriptor for the CLI processing task.
+ */
 static AppTaskDescriptor_t s_cliTask =
 {
     .name       = "CLI",
@@ -87,6 +119,10 @@ static AppTaskDescriptor_t s_cliTask =
     .lastRun_ms = 0U
 };
 
+/* ------------------------------------------------------------------------- */
+/* Public API                                                                */
+/* ------------------------------------------------------------------------- */
+
 void App_MainInit(void)
 {
     LOG_INFO("Application initialization started");
@@ -94,7 +130,7 @@ void App_MainInit(void)
     /* Initialize task manager and register tasks. */
     AppTaskManager_Init();
 
-    /* Initialize power manager */
+    /* Initialize power manager. */
     PowerManager_Init();
 
     /* Initialize the active sensor interface. */
@@ -104,7 +140,7 @@ void App_MainInit(void)
         LOG_ERROR("Sensor initialization failed");
     }
 
-    /* Register periodic tasks */
+    /* Register periodic tasks with the scheduler. */
     (void)AppTaskManager_RegisterTask(&s_heartbeatTask);
     (void)AppTaskManager_RegisterTask(&s_sensorTask);
     (void)AppTaskManager_RegisterTask(&s_powerTask);
@@ -119,6 +155,8 @@ void App_MainLoop(void)
     AppTaskManager_RunOnce();
 }
 
+/* ------------------------------------------------------------------------- */
+/* Task implementations                                                      */
 /* ------------------------------------------------------------------------- */
 
 static void App_TaskHeartbeat(void)
@@ -137,25 +175,73 @@ static void App_TaskHeartbeat(void)
  * the global logging subsystem. Each sample includes the measured value and
  * the timestamp (in milliseconds) when the reading was taken.
  *
- * This task forms the basis for integrating real I2C/SPI sensors in later
- * phases without requiring changes to the task implementation itself.
+ * The effective sampling rate is power-aware and is derived from the
+ * SENSOR_PERIOD_* constants defined in @ref app_config.
  */
 static void App_TaskSensorSample(void)
 {
-    /* Retrieve active sensor interface */
-    const SensorIF_t *sensorIF = Sensor_GetInterface();
-    SensorData_t data;
+    static uint32_t lastSampleTick_ms = 0U;
 
-    /* Attempt to read sensor data */
+    const SensorIF_t *sensorIF = Sensor_GetInterface();
+    if (sensorIF == NULL)
+    {
+        LOG_ERROR("SensorSample: Sensor interface is NULL");
+        return;
+    }
+
+    /* Determine desired sampling period based on power mode. */
+    PowerMode_t mode = PowerManager_GetCurrentMode();
+    uint32_t now_ms  = HAL_GetTick();
+    uint32_t period_ms = 0U;
+
+    switch (mode)
+    {
+        case POWER_MODE_ACTIVE:
+            period_ms = SENSOR_PERIOD_ACTIVE_MS;
+            break;
+
+        case POWER_MODE_IDLE:
+            period_ms = SENSOR_PERIOD_IDLE_MS;
+            break;
+
+        case POWER_MODE_SLEEP:
+            period_ms = SENSOR_PERIOD_SLEEP_MS;
+            break;
+
+        case POWER_MODE_STOP:
+        default:
+            period_ms = SENSOR_PERIOD_STOP_MS;
+            break;
+    }
+
+    /* If period is 0, sampling is disabled in this mode. */
+    if (period_ms == 0U)
+    {
+        LOG_DEBUG("SensorSample: sampling disabled in current power mode (%d)", (int)mode);
+        return;
+    }
+
+    /* Check if it's time to sample again. */
+    if ((now_ms - lastSampleTick_ms) < period_ms)
+    {
+        /* Not yet time to sample; exit early. */
+        return;
+    }
+
+    lastSampleTick_ms = now_ms;
+
+    /* Perform the actual sensor read. */
+    SensorData_t data;
     if (sensorIF->read(&data))
     {
-        LOG_INFO("SensorSample: value=%.2f C, timestamp=%lu ms",
+        LOG_INFO("SensorSample: value=%.2f C, timestamp=%lu ms, mode=%d",
                  data.value,
-                 (unsigned long)data.timestamp);
+                 (unsigned long)data.timestamp,
+                 (int)mode);
     }
     else
     {
-        LOG_WARN("SensorSample: sensor read failed");
+        LOG_WARN("SensorSample: read failed (mode=%d)", (int)mode);
     }
 }
 
@@ -163,11 +249,11 @@ static void App_TaskSensorSample(void)
  * @brief Periodically service the power manager.
  *
  * This function is invoked by the Task Manager at a fixed period.
- * In Phase 3 it simply delegates to PowerManager_Update(), which
+ * In Phase 3/4 it simply delegates to PowerManager_Update(), which
  * logs state transitions and maintains an idle cycle count.
  *
  * Future phases may extend this to adjust sensor sampling rates,
- * trigger low-power entry, or expose power statistics via a CLI.
+ * trigger low-power entry, or expose power statistics via the CLI.
  */
 static void App_TaskPowerManager(void)
 {
@@ -176,6 +262,10 @@ static void App_TaskPowerManager(void)
 
 /**
  * @brief Periodic wrapper around CLI processing.
+ *
+ * This task keeps the UART-based CLI responsive by polling CLI_Process()
+ * at a fixed rate. The CLI in turn handles user commands such as
+ * power mode changes, logging controls, and status queries.
  */
 static void App_TaskCli(void)
 {

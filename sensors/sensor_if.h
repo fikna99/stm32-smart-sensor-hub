@@ -6,6 +6,8 @@
  * Application code interacts only with this interface, regardless of
  * whether the underlying implementation talks to real hardware or
  * generates simulated data.
+ *
+ * @ingroup sensors
  */
 
 #ifndef SENSOR_IF_H
@@ -13,6 +15,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
+/**
+ * @defgroup sensors Sensor Abstraction
+ * @brief Generic sensor API and implementations for the Smart Sensor Hub.
+ * @ingroup app
+ * @{
+ */
 
 /**
  * @brief Structured sensor measurement data.
@@ -66,5 +75,7 @@ typedef struct
  * @return Pointer to a constant SensorIF_t interface instance.
  */
 const SensorIF_t *Sensor_GetInterface(void);
+
+/** @} */ /* end of sensors group */
 
 #endif /* SENSOR_IF_H */

@@ -28,9 +28,9 @@ Contains high-level program control:
 
 - `App_MainInit()`  
   Initializes all modules:
-  - Logging
+  - Logging subsystem
   - CLI
-  - Sensors
+  - Sensors (via `SensorIF_t`)
   - Power Manager
   - Task Manager
 
@@ -65,6 +65,19 @@ Registered Tasks:
 - `PowerManager` — manages power modes
 - `CLI` — processes UART command input
 
+The **SensorSample** task period is not hard-coded; it is derived from the
+current power mode, using:
+
+```c
+#define SENSOR_PERIOD_ACTIVE_MS   (1000U)
+#define SENSOR_PERIOD_IDLE_MS     (5000U)
+#define SENSOR_PERIOD_SLEEP_MS    (30000U)
+#define SENSOR_PERIOD_STOP_MS     (0U)   // 0 => no sampling in STOP
+```
+
+When `POWER_MODE_STOP` is active, the period is 0 and the sampling
+task is effectively disabled (no sensor reads).
+
 Each run produces `DEBUG` logs showing scheduling behavior.
 
 ---
@@ -80,7 +93,7 @@ Features:
 - Standardized format:
 
 ```
-[00123456 ms][INF][../app/app_main.c:152][App_Task] Message...
+[00123456 ms][INF][../app/app_main.c:152][App_TaskSensorSample] Message...
 ```
 
 - Cursor management so logs never corrupt CLI input
@@ -100,9 +113,13 @@ Features:
   - `status`
   - `help`
 
+The `status` command reports the **effective sensor sampling period**
+that is in use based on the current power mode.
+
 ### Thread safety glue (`newlib_lock_glue.c`)
 
-Makes newlib thread-safe for interrupts/RTOS usage in future.
+Provides newlib lock hooks to make standard library functions safe for
+future RTOS/interrupt use.
 
 ---
 
@@ -120,10 +137,15 @@ typedef struct {
 ```
 
 Provides:
-- Simulated temperature sensor (`sensor_if.c`)
-- Clean pathway to drop in real I2C/SPI sensors later.
+- `sensor_if.h` with the generic `SensorIF_t` API
+- Simulated temperature sensor backend:
+  - `sensor_sim_temp.c/.h`
+  - Implements `Sensor_GetInterface()` returning a `SensorIF_t`
 
----
+This design makes it trivial to drop in real I²C/SPI/ADC sensors later
+without changing application code.
+
+Manages abstract power modes:
 
 ## 5. Power Management Layer (`power/`)
 
@@ -140,29 +162,34 @@ typedef enum {
 
 Tracks:
 - Current power mode
-- Requested mode
+- Requested power mode
 - Idle cycle counts
 - Mode transitions (logged via logging subsystem)
 
-Future phases will integrate real STM32 low-power entry logic.
+The power mode indirectly drives the **SensorSample** task behavior by
+selecting one of the configured sampling periods. In STOP mode, sampling
+is fully disabled (period 0).
+
+Future phases will integrate real STM32 low-power entry logic (sleep/stop)
+and wakeup sources.
 
 ---
 
-## 6. CLI Dashboard interaction
+## 6. CLI Dashboard Interaction
 
-The logger and CLI share the same UART.
+The logger and CLI share the same UART.  
 To maintain readability:
 
-- Logs begin with `
-` to reset cursor to column 0
+- Logs begin with `\r` to reset cursor to column 0
 - After printing logs, `Log_Print()` calls `CLI_OnExternalOutput()`
 - CLI reprints:
 
-```
+```text
 > <current_input>
 ```
 
-This creates a pseudo-dashboard effect.
+This creates a pseudo-dashboard effect where logs scroll *above* and the
+command line remains anchored at the bottom.
 
 ---
 
@@ -179,4 +206,4 @@ Performs:
 - Compile-only firmware build
 - Ensures clean code on every push/PR
 
-Enforces professional software development discipline.
+Enforces professional software development discipline for the project.

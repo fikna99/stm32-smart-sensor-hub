@@ -93,10 +93,9 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   Log_Init(&huart2);
-
   CLI_Init(&huart2);
 
-  LOG_INFO("=== Smart Sensor Hub - Phase 1 startup ===\n");
+  LOG_INFO("=== Smart Sensor Hub startup ===");
   App_MainInit();
   /* USER CODE END 2 */
 
@@ -104,7 +103,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  App_MainLoop();
+    App_MainLoop();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

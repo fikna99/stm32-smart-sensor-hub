@@ -1,6 +1,7 @@
 /**
  * @file app_task_manager.c
  * @brief Cooperative task manager implementation.
+ * @ingroup scheduler
  */
 
 #include "app_task_manager.h"
@@ -14,6 +15,9 @@
 
 /**
  * @brief Static array of pointers to registered tasks.
+ *
+ * Each entry points to an @ref AppTaskDescriptor_t instance that
+ * is managed by the application. Unused slots are set to NULL.
  */
 static AppTaskDescriptor_t *s_tasks[APP_MAX_TASKS] = {0};
 

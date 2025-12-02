@@ -6,6 +6,8 @@
  * optional metadata such as timestamp, file name, line number,
  * and function name. It is intended to make code flow traceable
  * during development and debugging.
+ *
+ * @ingroup logging
  */
 
 #ifndef LOG_H
@@ -18,6 +20,13 @@ extern "C" {
 #include "stdint.h"
 #include "stm32f4xx_hal.h"
 #include <stdbool.h>
+
+/**
+ * @defgroup logging Logging Subsystem
+ * @brief Formatted UART logging for the Smart Sensor Hub.
+ * @ingroup common
+ * @{
+ */
 
 /**
  * @enum LogLevel_t
@@ -38,6 +47,8 @@ typedef enum
  * peripheral used for logging has been initialized.
  *
  * @param huart Pointer to the UART handle for log output.
+ *
+ * @return None.
  */
 void Log_Init(UART_HandleTypeDef *huart);
 
@@ -46,6 +57,43 @@ LogLevel_t Log_GetLevel(void);
 void Log_Enable(bool enable);
 bool Log_IsEnabled(void);
 
+
+/**
+ * @brief Set the minimum log level.
+ *
+ * Messages below this level will be filtered out.
+ *
+ * @param level New minimum log level.
+ *
+ * @return None.
+ */
+void Log_SetLevel(LogLevel_t level);
+
+/**
+ * @brief Get the current minimum log level.
+ *
+ * @return The active minimum log level.
+ */
+LogLevel_t Log_GetLevel(void);
+
+/**
+ * @brief Enable or disable logging globally.
+ *
+ * When disabled, Log_Print() returns immediately without writing
+ * anything to the UART. CLI output is not affected by this flag.
+ *
+ * @param enable true to enable logging, false to disable.
+ *
+ * @return None.
+ */
+void Log_Enable(bool enable);
+
+/**
+ * @brief Query whether logging is currently enabled.
+ *
+ * @return true if logging is enabled, false otherwise.
+ */
+bool Log_IsEnabled(void);
 
 /**
  * @brief Prints a formatted log message.
@@ -60,6 +108,8 @@ bool Log_IsEnabled(void);
  * @param func    Function name (__func__).
  * @param fmt     printf-style format string.
  * @param ...     Arguments for the format string.
+ *
+ * @return None.
  */
 void Log_Print(LogLevel_t level,
                const char *file,
@@ -68,11 +118,22 @@ void Log_Print(LogLevel_t level,
                const char *fmt,
                ...);
 
+/**
+ * @brief Hook called after each log line is printed.
+ *
+ * Implemented as a weak symbol in log.c and optionally overridden
+ * by the CLI module to redraw the prompt and input line so that
+ * the CLI behaves like a clean dashboard.
+ */
+void CLI_OnExternalOutput(void);
+
 /* Convenience macros for logging with automatic metadata. */
 #define LOG_DEBUG(fmt, ...)  Log_Print(LOG_LEVEL_DEBUG, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LOG_INFO(fmt, ...)   Log_Print(LOG_LEVEL_INFO,  __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)   Log_Print(LOG_LEVEL_WARN,  __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LOG_ERROR(fmt, ...)  Log_Print(LOG_LEVEL_ERROR, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+/** @} */ /* end of logging group */
 
 #ifdef __cplusplus
 }
