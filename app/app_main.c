@@ -8,6 +8,8 @@
 #include "log.h"
 #include "stm32f4xx_hal.h"
 #include "sensor_if.h"
+#include "power_manager.h"   /**< New include for Phase 3. */
+#include "cli.h"
 
 /* Forward declaration of the heartbeat task function. */
 static void App_TaskHeartbeat(void);
@@ -21,6 +23,17 @@ static void App_TaskHeartbeat(void);
  * task descriptor.
  */
 static void App_TaskSensorSample(void);
+
+/**
+ * @brief Periodic task that updates the power manager.
+ *
+ * This task calls PowerManager_Update() at a fixed interval so that
+ * power mode transitions and related policies can be evaluated and
+ * logged centrally.
+ */
+static void App_TaskPowerManager(void);
+
+static void App_TaskCli(void);
 
 /**
  * @brief Descriptor for the heartbeat task.
@@ -52,6 +65,27 @@ static AppTaskDescriptor_t s_sensorTask =
     .lastRun_ms = 0U               /**< Populated at task registration. */
 };
 
+/**
+ * @brief Task descriptor for the Power Manager task.
+ *
+ * This task runs at a moderate frequency (e.g. every 500 ms) and
+ * evaluates the current power mode and any outstanding requests.
+ */
+static AppTaskDescriptor_t s_powerTask =
+{
+    .name       = "PowerManager",        /**< Human-readable task name. */
+    .function   = App_TaskPowerManager,  /**< Task entry function.      */
+    .period_ms  = 500U,                  /**< Execute every 500 ms.     */
+    .lastRun_ms = 0U
+};
+
+static AppTaskDescriptor_t s_cliTask =
+{
+    .name       = "CLI",
+    .function   = App_TaskCli,
+    .period_ms  = 20U,
+    .lastRun_ms = 0U
+};
 
 void App_MainInit(void)
 {
@@ -59,6 +93,10 @@ void App_MainInit(void)
 
     /* Initialize task manager and register tasks. */
     AppTaskManager_Init();
+
+    /* Initialize power manager */
+    PowerManager_Init();
+
     /* Initialize the active sensor interface. */
     const SensorIF_t *sensorIF = Sensor_GetInterface();
     if (!sensorIF->init())
@@ -69,6 +107,8 @@ void App_MainInit(void)
     /* Register periodic tasks */
     (void)AppTaskManager_RegisterTask(&s_heartbeatTask);
     (void)AppTaskManager_RegisterTask(&s_sensorTask);
+    (void)AppTaskManager_RegisterTask(&s_powerTask);
+    (void)AppTaskManager_RegisterTask(&s_cliTask);
 
     LOG_INFO("Application initialization completed");
 }
@@ -117,4 +157,27 @@ static void App_TaskSensorSample(void)
     {
         LOG_WARN("SensorSample: sensor read failed");
     }
+}
+
+/**
+ * @brief Periodically service the power manager.
+ *
+ * This function is invoked by the Task Manager at a fixed period.
+ * In Phase 3 it simply delegates to PowerManager_Update(), which
+ * logs state transitions and maintains an idle cycle count.
+ *
+ * Future phases may extend this to adjust sensor sampling rates,
+ * trigger low-power entry, or expose power statistics via a CLI.
+ */
+static void App_TaskPowerManager(void)
+{
+    PowerManager_Update();
+}
+
+/**
+ * @brief Periodic wrapper around CLI processing.
+ */
+static void App_TaskCli(void)
+{
+    CLI_Process();
 }

@@ -1,81 +1,83 @@
-# Release Notes — Smart Power‑Managed Sensor Hub
-
-This file tracks changes across phases of the project.
 
 ---
 
-## v0.1.0 — Phase 1: Skeleton, Logging, Task Manager
+## 3️⃣ docs/RELEASE_NOTES.md
 
-### ✅ Added
+Replace `docs/RELEASE_NOTES.md` with:
 
-- Initial **STM32CubeIDE project** targeting the Nucleo‑F446RE board.
-- **Logging subsystem** (`common/log.c`, `common/log.h`):
-  - UART2‑based logging with timestamps.
-  - Severity levels: DEBUG / INFO / WARN / ERROR.
-  - Automatic inclusion of file name, line number, and function name.
-- **Cooperative Task Manager** (`app/app_task_manager.c`, `app/app_task_manager.h`):
-  - Registration of periodic tasks via `AppTaskManager_RegisterTask()`.
-  - Execution of due tasks based on `HAL_GetTick()` timing.
-- **Application entry logic** (`app/app_main.c`, `app/app_main.h`):
-  - Initialization sequence with log messages.
-  - Registration of a Heartbeat task.
-- **Heartbeat task**:
-  - Toggles the on‑board LED (PA5).
-  - Logs a message each time it runs, demonstrating scheduler + logging.
-- **Documentation**:
-  - `docs/README.md` – project overview and usage.
-  - `docs/ARCHITECTURE.md` – layered design explanation.
-  - `docs/RELEASE_NOTES.md` – this file.
+```md
+# Release Notes
 
-### ⚠️ Known Limitations
+## v0.3.0 – Power Manager, CLI Dashboard, and CI
 
-- No sensor interfaces have been implemented yet.
-- No explicit power management (sleep/stop modes) is in use yet.
-- No communication protocol beyond debug logging over UART2.
-- No RTOS; only a cooperative scheduler is available.
+### Added
 
-These limitations are expected at Phase 1 and will be addressed in:
+- **Power Manager Module**
+  - New `power/` folder with `power_manager.c/.h`
+  - Abstract power modes: `ACTIVE`, `IDLE`, `SLEEP`, `STOP`
+  - Tracks current and requested mode
+  - Logs mode transitions and counts idle cycles
 
-- **Phase 2** — simulated sensor and sampling task.
-- **Phase 3** — power management building blocks.
-- **Phase 4+** — communication stack and RTOS migration.
+- **CLI (Command Line Interface)**
+  - New `common/cli.c/.h`
+  - Line-based UART interface over USART2
+  - Commands:
+    - `help`
+    - `log off|error|warn|info|debug|pause|resume`
+    - `pmode active|idle|sleep|stop`
+    - `status`
+  - Pausable logging:
+    - `log pause` temporarily disables task logs
+    - `log resume` restores previous log state
+  - Dashboard-style UX:
+    - Logs scroll above
+    - CLI prompt and partial input line are redrawn after each log line
+
+- **Logging Enhancements**
+  - Runtime log control:
+    - `Log_Enable()/Log_IsEnabled()`
+    - `Log_SetLevel()/Log_GetLevel()`
+  - Log output now:
+    - Starts with `\r` to avoid mixing with CLI prompt
+    - Calls `CLI_OnExternalOutput()` to maintain a clean CLI line
+
+- **GitHub Actions CI**
+  - New workflow: `.github/workflows/ci.yml`
+  - Uses `gcc-arm-none-eabi` on Ubuntu
+  - Compile-only build of all `.c` sources on push/PR to `main`
 
 ---
 
-## v0.2.0 — Phase 2: Simulated Sensor & Sampling Task
+## v0.2.0 – Sensor Abstraction and Simulated Sensor
 
-### ✅ Added
+### Added
 
-- **Generic Sensor Interface** (`sensors/sensor_if.h`):
-  - `SensorData_t` structure for scalar measurements and timestamps.
-  - `SensorIF_t` function pointer-based interface (`init`, `read`).
-  - `Sensor_GetInterface()` to obtain the active sensor implementation.
+- `sensors/` module:
+  - `sensor_if.c/.h` with `SensorIF_t` abstraction
+  - Simulated temperature sensor implementation
+  - Central function `Sensor_GetInterface()` to obtain the active interface
 
-- **Simulated Temperature Sensor** (`sensors/sensor_sim_temp.c`, `sensors/sensor_sim_temp.h`):
-  - Time-varying temperature signal based on a sine wave:
-    - `T(t) = 25°C + 3°C * sin(t / 2000 ms)`
-  - Uses `HAL_GetTick()` for timing.
-  - Implements the generic `SensorIF_t` interface.
+- `SensorSample` task:
+  - Periodically reads data from the sensor interface
+  - Logs value and timestamp via logging subsystem
 
-- **Sensor Sampling Task** (`app/app_main.c`):
-  - New periodic task `App_TaskSensorSample()` running every 1000 ms.
-  - Calls `sensorIF->read()` and logs structured data:
-    - Sensor value in °C.
-    - Timestamp in milliseconds.
+### Changed
 
-- **Logging refinement** (`common/log.c`):
-  - Fixed newline string declaration to remove GCC warning:
-    - `const char newline[] = "\r\n";`
+- Application code now interacts only with the `SensorIF_t` interface, not with a specific sensor implementation.
+- Prepared the design so that a real sensor (I2C, SPI, etc.) can replace the simulated one without touching `app_main`.
 
-### ⚠️ Remaining Limitations
+---
 
-- Still using a cooperative scheduler (no RTOS yet).
-- Only a single simulated temperature sensor is available.
-- No explicit power management or low-power modes yet.
-- No communication protocol beyond UART logging.
+## v0.1.0 – Initial Skeleton and Logging
 
-These will be addressed in:
-- Phase 3 — power management scaffolding.
-- Phase 4 — communication protocol and PC-side tools.
-- Phase 5 — FreeRTOS migration and task monitoring.
+### Added
 
+- STM32CubeIDE project targeting Nucleo-F446RE
+- Task Manager:
+  - Basic cooperative scheduler in `app_task_manager.c`
+  - `Heartbeat` task that toggles the on-board LED
+- Logging subsystem:
+  - UART-based log output with timestamp and severity
+  - Macros: `LOG_DEBUG`, `LOG_INFO`, `LOG_WARN`, `LOG_ERROR`
+- Documentation:
+  - Initial `docs/README.md` and `docs/ARCHITECTURE.md`

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build (compile-only) STM32 firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM GCC toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi make
+
+      - name: Compile STM32 firmware sources (no linking)
+        run: |
+          set -e
+
+          CFLAGS="-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard \
+          -std=gnu11 -g3 -O0 -ffunction-sections -fdata-sections -Wall \
+          -DDEBUG -DUSE_HAL_DRIVER -DSTM32F446xx -DSTM32_THREAD_SAFE_STRATEGY=2"
+
+          INCLUDES="-ICore/Inc -ICore/ThreadSafe \
+          -IDrivers/STM32F4xx_HAL_Driver/Inc \
+          -IDrivers/STM32F4xx_HAL_Driver/Inc/Legacy \
+          -IDrivers/CMSIS/Device/ST/STM32F4xx/Include \
+          -IDrivers/CMSIS/Include \
+          -Iapp -Icommon -Isensors -Ipower"
+
+          SRC_DIRS="Core/Src Drivers/STM32F4xx_HAL_Driver/Src app common sensors power"
+
+          echo "Compiling sources with: $CFLAGS"
+          for DIR in $SRC_DIRS; do
+            if [ -d "$DIR" ]; then
+              for SRC in $(find "$DIR" -maxdepth 1 -name '*.c'); do
+                OBJ="/tmp/$(basename "$SRC" .c).o"
+                echo "Compiling $SRC -> $OBJ"
+                arm-none-eabi-gcc $CFLAGS $INCLUDES -c "$SRC" -o "$OBJ"
+              done
+            fi
+          done
+
+          echo "All sources compiled successfully."

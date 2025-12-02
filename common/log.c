@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 /**
  * @brief UART handle used for log output.
@@ -15,6 +16,18 @@
  * Log_Print() to send data over serial.
  */
 static UART_HandleTypeDef *s_logUart = NULL;
+
+/**
+ * @brief Current minimum log level.
+ */
+static LogLevel_t s_minLevel = LOG_LEVEL_INFO;
+
+/**
+ * @brief Global enable flag for task logging.
+ *
+ * When false, Log_Print() returns immediately. CLI output is not affected.
+ */
+static bool s_enabled = false;
 
 /**
  * @brief Maximum length of a single log line.
@@ -36,6 +49,12 @@ void Log_Init(UART_HandleTypeDef *huart)
     s_logUart = huart;
 }
 
+__attribute__((weak)) void CLI_OnExternalOutput(void)
+{
+    /* Default implementation: do nothing. */
+}
+
+
 void Log_Print(LogLevel_t level,
                const char *file,
                uint32_t line,
@@ -48,6 +67,12 @@ void Log_Print(LogLevel_t level,
         /* Logging is not initialized yet, nothing to do. */
         return;
     }
+
+    /* 🔴 THIS IS THE CRITICAL FILTER 🔴 */
+     if ((s_logUart == NULL) || (!s_enabled) || (level < s_minLevel))
+     {
+         return;
+     }
 
     char buffer[LOG_MAX_MESSAGE_LENGTH];
     char logPrefix[96];
@@ -76,6 +101,13 @@ void Log_Print(LogLevel_t level,
         return;
     }
 
+    /* Move to column 0, then print prefix and message */
+    const char cr = '\r';
+    (void)HAL_UART_Transmit(s_logUart,
+                            (uint8_t *)&cr,
+                            1U,
+                            HAL_MAX_DELAY);
+
     /* Transmit prefix, then message, then newline. */
     (void)HAL_UART_Transmit(s_logUart,
                             (uint8_t *)logPrefix,
@@ -92,6 +124,8 @@ void Log_Print(LogLevel_t level,
                             (uint8_t *)newline,
                             (uint16_t)strlen(newline),
                             HAL_MAX_DELAY);
+
+    CLI_OnExternalOutput();
 }
 
 static const char *Log_LevelToString(LogLevel_t level)
@@ -104,4 +138,24 @@ static const char *Log_LevelToString(LogLevel_t level)
         case LOG_LEVEL_ERROR: return "ERR";
         default:              return "UNK";
     }
+}
+
+void Log_SetLevel(LogLevel_t level)
+{
+    s_minLevel = level;
+}
+
+LogLevel_t Log_GetLevel(void)
+{
+    return s_minLevel;
+}
+
+void Log_Enable(bool enable)
+{
+    s_enabled = enable;
+}
+
+bool Log_IsEnabled(void)
+{
+    return s_enabled;
 }

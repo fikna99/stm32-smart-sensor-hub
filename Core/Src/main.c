@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "log.h"
 #include "app_main.h"
+#include "cli.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,6 +93,9 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   Log_Init(&huart2);
+
+  CLI_Init(&huart2);
+
   LOG_INFO("=== Smart Sensor Hub - Phase 1 startup ===\n");
   App_MainInit();
   /* USER CODE END 2 */

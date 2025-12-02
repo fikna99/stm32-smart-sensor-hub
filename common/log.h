@@ -17,6 +17,7 @@ extern "C" {
 
 #include "stdint.h"
 #include "stm32f4xx_hal.h"
+#include <stdbool.h>
 
 /**
  * @enum LogLevel_t
@@ -39,6 +40,12 @@ typedef enum
  * @param huart Pointer to the UART handle for log output.
  */
 void Log_Init(UART_HandleTypeDef *huart);
+
+void Log_SetLevel(LogLevel_t level);
+LogLevel_t Log_GetLevel(void);
+void Log_Enable(bool enable);
+bool Log_IsEnabled(void);
+
 
 /**
  * @brief Prints a formatted log message.
