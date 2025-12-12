@@ -61,7 +61,8 @@ typedef struct {
 
 Registered Tasks:
 - `Heartbeat` — toggles LED, system liveness
-- `SensorSample` — reads simulated sensor data
+- `EnvSample` — reads BME280 (or simulated env) and logs T/P/H
+- `LightSample` — reads TSL2591 and logs lux/ALS values
 - `PowerManager` — manages power modes
 - `CLI` — processes UART command input
 
@@ -116,10 +117,6 @@ Features:
 The `status` command reports the **effective sensor sampling period**
 that is in use based on the current power mode.
 
-### Thread safety glue (`newlib_lock_glue.c`)
-
-Provides newlib lock hooks to make standard library functions safe for
-future RTOS/interrupt use.
 
 ---
 
@@ -138,14 +135,25 @@ typedef struct {
 
 Provides:
 - `sensor_if.h` with the generic `SensorIF_t` API
-- Simulated temperature sensor backend:
-  - `sensor_sim_temp.c/.h`
-  - Implements `Sensor_GetInterface()` returning a `SensorIF_t`
+- Sensor backends:
+
+- Simulated temperature backend (`sensor_sim_temp.c/.h`) for early bring-up
+- TSL2591 light sensor backend (I²C)
+- BME280 environmental sensor backend (SPI2)
+
+The application consumes sensors through interfaces so backends can be swapped without changing `app/` code.
 
 This design makes it trivial to drop in real I²C/SPI/ADC sensors later
 without changing application code.
 
-Manages abstract power modes:
+```c
+typedef enum {
+    POWER_MODE_ACTIVE,
+    POWER_MODE_IDLE,
+    POWER_MODE_SLEEP,
+    POWER_MODE_STOP
+} PowerMode_t;
+```
 
 ## 5. Power Management Layer (`power/`)
 

@@ -1,3 +1,16 @@
+## v0.5.0 – Real Sensor Backends (TSL2591 I²C + BME280 SPI2)
+
+### Added
+
+- **TSL2591 light sensor backend (I²C)**
+  - Light sampling task logs sensor readings on a fixed period (power-mode-aware sampling can be applied as needed).
+- **BME280 environmental sensor backend (SPI2)**
+  - Environmental sampling task logs temperature, pressure, and relative humidity (%RH).
+- **Docs updates**
+  - Updated architecture and CLI docs to reflect real sensors and current version.
+
+---
+
 # Release Notes
 
 ## v0.4.0 – Dynamic Sensor Sampling Based on Power Mode

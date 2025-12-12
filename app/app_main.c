@@ -22,6 +22,12 @@
 #include "power_manager.h"
 #include "cli.h"
 #include "app_config.h"
+#include "light_if.h"
+#include "light_tsl2591.h"    /* For TSL2591_Data_t */
+#include "env_if.h"
+#include "env_types.h"
+
+
 
 /* ------------------------------------------------------------------------- */
 /* Forward declarations                                                      */
@@ -60,6 +66,12 @@ static void App_TaskPowerManager(void);
  */
 static void App_TaskCli(void);
 
+/**
+ * @brief Periodic task: sample ambient light from TSL2591.
+ */
+static void App_TaskLightSample(void);
+
+static void App_TaskEnvSample(void);
 /* ------------------------------------------------------------------------- */
 /* Task descriptors                                                          */
 /* ------------------------------------------------------------------------- */
@@ -119,6 +131,21 @@ static AppTaskDescriptor_t s_cliTask =
     .lastRun_ms = 0U
 };
 
+static AppTaskDescriptor_t s_lightTask =
+{
+	    .name       = "LightSample",        /**< Human-readable task name.         */
+	    .function   = App_TaskLightSample,  /**< Task entry function.              */
+	    .period_ms  = 1000U,                 /**< Scheduler tick for this task.     */
+	    .lastRun_ms = 0U                     /**< Populated at task registration.   */
+};
+
+static AppTaskDescriptor_t s_envTask =
+{
+	    .name       = "EnvSample",        /**< Human-readable task name.         */
+	    .function   = App_TaskEnvSample,  /**< Task entry function.              */
+	    .period_ms  = 2000U,                 /**< Scheduler tick for this task.     */
+	    .lastRun_ms = 0U                     /**< Populated at task registration.   */
+};
 /* ------------------------------------------------------------------------- */
 /* Public API                                                                */
 /* ------------------------------------------------------------------------- */
@@ -133,18 +160,42 @@ void App_MainInit(void)
     /* Initialize power manager. */
     PowerManager_Init();
 
-    /* Initialize the active sensor interface. */
-    const SensorIF_t *sensorIF = Sensor_GetInterface();
-    if (!sensorIF->init())
+    /* Initialize the active sensor interface (selects SIM or HW backend). */
+    if (!SensorIF_Init())
     {
-        LOG_ERROR("Sensor initialization failed");
+        LOG_ERROR("App_MainInit: SensorIF_Init() failed");
     }
+    else
+    {
+        LOG_INFO("App_MainInit: sensor interface initialized successfully");
+    }
+
+    if (!LightIF_Init())
+    {
+        LOG_ERROR("App_MainInit: LightIF_Init() failed");
+    }
+    else
+    {
+        LOG_INFO("App_MainInit: light interface initialized successfully");
+    }
+
+    if (!EnvIF_Init())
+    {
+        LOG_ERROR("App_MainInit: EnvIF_Init failed.");
+    }
+    else
+    {
+        LOG_INFO("App_MainInit: EnvIF initialized.");
+    }
+
 
     /* Register periodic tasks with the scheduler. */
     (void)AppTaskManager_RegisterTask(&s_heartbeatTask);
     (void)AppTaskManager_RegisterTask(&s_sensorTask);
     (void)AppTaskManager_RegisterTask(&s_powerTask);
     (void)AppTaskManager_RegisterTask(&s_cliTask);
+    (void)AppTaskManager_RegisterTask(&s_lightTask);
+    (void)AppTaskManager_RegisterTask(&s_envTask);
 
     LOG_INFO("Application initialization completed");
 }
@@ -170,10 +221,8 @@ static void App_TaskHeartbeat(void)
 /**
  * @brief Executes one sensor sampling cycle.
  *
- * This task uses the currently active sensor interface (simulated for Phase 2)
- * to retrieve a measurement. Upon success, the function logs the result using
- * the global logging subsystem. Each sample includes the measured value and
- * the timestamp (in milliseconds) when the reading was taken.
+ * This task uses the currently active sensor interface (simulated or
+ * hardware-backed, depending on configuration) to retrieve a measurement.
  *
  * The effective sampling rate is power-aware and is derived from the
  * SENSOR_PERIOD_* constants defined in @ref app_config.
@@ -271,3 +320,43 @@ static void App_TaskCli(void)
 {
     CLI_Process();
 }
+
+/**
+ * @brief Periodic task: sample ambient light from active backend.
+ */
+static void App_TaskLightSample(void)
+{
+    TSL2591_Data_t data;
+
+    if (LightIF_Read(&data))
+    {
+        LOG_INFO("LightSample: lux=%.2f, full=%u, ir=%u, t=%lu ms",
+                 (double)data.lux,
+                 (unsigned int)data.fullChannel,
+                 (unsigned int)data.irChannel,
+                 (unsigned long)data.timestampMs);
+    }
+    else
+    {
+        LOG_WARN("LightSample: read failed.");
+    }
+}
+
+static void App_TaskEnvSample(void)
+{
+    EnvData_t env;
+
+    if (EnvIF_Read(&env))
+    {
+        LOG_INFO("EnvSample: T=%.2f C, P=%.2f Pa, H=%.2f %%RH, t=%lu ms",
+                 (double)env.temperatureC,
+                 (double)env.pressurePa,
+                 (double)env.humidityRH,
+                 (unsigned long)env.timestampMs);
+    }
+    else
+    {
+        LOG_WARN("EnvSample: read failed.");
+    }
+}
+

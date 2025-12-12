@@ -8,6 +8,7 @@
 #define APP_CONFIG_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * @defgroup app_config Application Configuration
@@ -16,6 +17,27 @@
  * @{
  */
 
+/** @brief Use simulated environment (BME280) backend (1 = yes, 0 = no). */
+#define APP_USE_SIM_ENV     (1U)
+
+/** @brief Use hardware BME280 SPI backend (1 = yes, 0 = no). */
+#define APP_USE_HW_ENV      (0U)
+
+#if ((APP_USE_SIM_ENV + APP_USE_HW_ENV) != 1)
+#error "Exactly one of APP_USE_SIM_ENV or APP_USE_HW_ENV must be set to 1."
+#endif
+
+/**
+ * @brief Select which sensor backend to use.
+ *
+ * Exactly one of these should be set to 1.
+ */
+#define APP_USE_SIMULATED_SENSOR   (1U)
+#define APP_USE_HW_SENSOR          (0U)
+
+#if ((APP_USE_SIMULATED_SENSOR + APP_USE_HW_SENSOR) != 1)
+#error "Exactly one of APP_USE_SIM_LIGHT or APP_USE_HW_LIGHT must be set to 1."
+#endif
 /**
  * @name Sensor sampling periods per power mode
  * @brief Logical sampling intervals that depend on the current power mode.
@@ -39,6 +61,17 @@
 #define SENSOR_PERIOD_STOP_MS     (0U)       /**< 0 => no sampling in STOP.  */
 
 /** @} */ /* end of Sensor sampling periods group */
+
+/** @brief Use simulated TSL2591 light sensor backend (1 = yes, 0 = no). */
+#define APP_USE_SIM_LIGHT     (1U)
+
+/** @brief Use hardware TSL2591 light sensor backend (1 = yes, 0 = no). */
+#define APP_USE_HW_LIGHT      (0U)
+
+#if ((APP_USE_SIM_LIGHT + APP_USE_HW_LIGHT) != 1)
+#error "Exactly one of APP_USE_SIM_LIGHT or APP_USE_HW_LIGHT must be set to 1."
+#endif
+
 /** @} */ /* end of app_config group */
 
 #endif /* APP_CONFIG_H_ */

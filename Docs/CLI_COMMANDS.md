@@ -26,6 +26,22 @@ You can then type commands followed by Enter.
 
 ---
 
+## Tip: Reading CLI output cleanly
+
+If task logs are scrolling while you are trying to read `help`, use:
+
+```text
+> log pause
+```
+
+Then run your command (e.g., `help`), and restore logging with:
+
+```text
+> log resume
+```
+
+---
+
 ## Command Reference
 
 ### `help`
@@ -147,7 +163,7 @@ Supported modes:
 Requested power mode change: idle
 ```
 
-Currently (v0.4.0) the Power Manager:
+Currently (v0.5.0) the Power Manager:
 
 - Logs mode transitions.
 - Tracks idle cycles.

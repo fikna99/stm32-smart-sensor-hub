@@ -13,6 +13,12 @@
 #include <string.h>
 #include <stdbool.h>
 
+uint32_t Log_GetTimestampMs(void)
+{
+    return HAL_GetTick();
+}
+
+
 /**
  * @brief UART handle used for log output.
  *
@@ -74,6 +80,12 @@ void Log_Print(LogLevel_t level,
 {
     /* If logging is not initialized, do nothing. */
     if (s_logUart == NULL)
+    {
+        return;
+    }
+
+    /* Apply global filters: enabled flag and min log level. */
+    if ((!s_enabled) || (level < s_minLevel))
     {
         return;
     }

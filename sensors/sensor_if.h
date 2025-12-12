@@ -1,13 +1,9 @@
 /**
  * @file sensor_if.h
- * @brief Generic sensor interface for the Smart Sensor Hub project.
+ * @brief Public sensor interface types and API.
  *
- * This header defines a common C API for sensors (simulated or real).
- * Application code interacts only with this interface, regardless of
- * whether the underlying implementation talks to real hardware or
- * generates simulated data.
- *
- * @ingroup sensors
+ * This header defines the generic sensor interface used by the application.
+ * The actual backend (simulated vs hardware) is selected in sensor_if.c.
  */
 
 #ifndef SENSOR_IF_H
@@ -16,65 +12,53 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/**
- * @defgroup sensors Sensor Abstraction
- * @brief Generic sensor API and implementations for the Smart Sensor Hub.
- * @ingroup app
- * @{
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
- * @brief Structured sensor measurement data.
- *
- * For Phase 2, this represents a single scalar value (e.g. temperature).
- * Future phases may extend this with additional fields such as status
- * flags, error codes, or multi-dimensional measurements.
+ * @brief Generic sensor data structure returned by sensor backends.
  */
 typedef struct
 {
-    float    value;     /**< Sensor reading (e.g. temperature in °C). */
-    uint32_t timestamp; /**< Timestamp in milliseconds (HAL_GetTick). */
+    float    value;      /**< Measured value (e.g., temperature in °C).   */
+    uint32_t timestamp;  /**< Timestamp in milliseconds.                  */
+    uint32_t mode;       /**< Optional: power mode or additional context. */
 } SensorData_t;
 
 /**
- * @brief Function pointer type for sensor initialization.
+ * @brief Interface for a generic sensor.
  *
- * @return true if initialization succeeded, false otherwise.
- */
-typedef bool (*SensorInitFn_t)(void);
-
-/**
- * @brief Function pointer type for reading a sensor measurement.
- *
- * @param[out] outData Pointer to a SensorData_t structure that will be
- *                     filled with the measurement result on success.
- * @return true if the read operation succeeded, false otherwise.
- */
-typedef bool (*SensorReadFn_t)(SensorData_t *outData);
-
-/**
- * @brief Sensor interface API (function pointers).
- *
- * Any specific sensor implementation (simulated or hardware-backed)
- * must provide an instance of this structure so that the application
- * can invoke the sensor in a generic way.
+ * All sensor backends (simulated, hardware, etc.) implement this interface.
  */
 typedef struct
 {
-    SensorInitFn_t init; /**< Initialize the sensor module. */
-    SensorReadFn_t read; /**< Read a single measurement.    */
+    bool (*init)(void);             /**< Initialize the sensor backend.       */
+    bool (*read)(SensorData_t *out);/**< Read current sensor value.           */
 } SensorIF_t;
 
 /**
- * @brief Obtain the currently active sensor interface.
+ * @brief Initialize and select the active sensor interface.
  *
- * In Phase 2, this returns a handle to the simulated temperature
- * sensor implementation. Later phases may route this to real I2C/SPI
- * sensor drivers or select between multiple sensors at runtime.
+ * This must be called once from App_MainInit() before Sensor_GetInterface().
+ * The backend (simulated vs hardware) is selected at compile time using
+ * APP_USE_SIMULATED_SENSOR / APP_USE_HW_SENSOR in app_config.h.
  *
- * @return Pointer to a constant SensorIF_t interface instance.
+ * @retval true  Sensor backend initialized successfully.
+ * @retval false Initialization failed.
  */
-const SensorIF_t *Sensor_GetInterface(void);
+bool SensorIF_Init(void);
+
+/**
+ * @brief Get the active SensorIF_t pointer.
+ *
+ * @return Pointer to SensorIF_t, or NULL if SensorIF_Init() failed.
+ */
+const SensorIF_t * Sensor_GetInterface(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 /** @} */ /* end of sensors group */
 

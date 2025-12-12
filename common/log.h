@@ -96,6 +96,43 @@ void Log_Enable(bool enable);
 bool Log_IsEnabled(void);
 
 /**
+ * @brief Set the minimum log level.
+ *
+ * Messages below this level will be filtered out.
+ *
+ * @param level New minimum log level.
+ *
+ * @return None.
+ */
+void Log_SetLevel(LogLevel_t level);
+
+/**
+ * @brief Get the current minimum log level.
+ *
+ * @return The active minimum log level.
+ */
+LogLevel_t Log_GetLevel(void);
+
+/**
+ * @brief Enable or disable logging globally.
+ *
+ * When disabled, Log_Print() returns immediately without writing
+ * anything to the UART. CLI output is not affected by this flag.
+ *
+ * @param enable true to enable logging, false to disable.
+ *
+ * @return None.
+ */
+void Log_Enable(bool enable);
+
+/**
+ * @brief Query whether logging is currently enabled.
+ *
+ * @return true if logging is enabled, false otherwise.
+ */
+bool Log_IsEnabled(void);
+
+/**
  * @brief Prints a formatted log message.
  *
  * This is the generic logging function used internally by the
@@ -132,6 +169,16 @@ void CLI_OnExternalOutput(void);
 #define LOG_INFO(fmt, ...)   Log_Print(LOG_LEVEL_INFO,  __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)   Log_Print(LOG_LEVEL_WARN,  __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LOG_ERROR(fmt, ...)  Log_Print(LOG_LEVEL_ERROR, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+/**
+ * @brief Get the current log timestamp in milliseconds.
+ *
+ * This helper is used by modules that want a timestamp compatible
+ * with the logging system.
+ *
+ * @return Current timestamp in milliseconds.
+ */
+uint32_t Log_GetTimestampMs(void);
 
 /** @} */ /* end of logging group */
 

@@ -16,7 +16,7 @@ The **STM32 Smart Sensor Hub** is a professionally structured embedded firmware 
 - Runtime-configurable structured logging framework  
 - Interactive UART CLI (dashboard-style)  
 - Power management system  
-- Sensor abstraction (simulated sensor now, real sensors later)  
+- Sensor abstraction (simulated backend + real I²C/SPI sensor backends)  
 - **Dynamic sensor sampling period that adapts to the current power mode**  
 - GitHub Actions CI (compile-only)  
 - Full documentation  
@@ -74,7 +74,7 @@ Each task has its own period and logs its execution timing.
 Log format:
 
 ```text
-[00123456 ms][INF][../app/app_main.c:152][App_TaskSensorSample] Value=23.1 C
+[00123456 ms][INF][../app/app_main.c:152][App_TaskSensorSample] T=26.1 C, P=101325 Pa, H=45.0 %RH
 ```
 
 Supports:
@@ -118,17 +118,13 @@ typedef struct {
 } SensorIF_t;
 ```
 
-Currently uses a simulated temperature sensor (`sensor_sim_temp.c/.h`)  
-plugged into this interface.
+Currently supports both simulated and hardware backends through the same interface:
 
-Later you can plug in:
+- Simulated temperature sensor (`sensor_sim_temp.c/.h`) for early bring-up
+- TSL2591 light sensor (I²C)
+- BME280 environmental sensor (SPI2)
 
-- I²C sensor  
-- SPI sensor  
-- ADC sensor  
-- Additional simulated/virtual sensors for testing  
-
----
+Additional sensors can be added without changing application code by implementing the same interface.---
 
 ### ✔️ Power Management Framework + Dynamic Sampling
 
@@ -210,24 +206,25 @@ All are updated at each project phase.
 
 ---
 
-## 📌 Current Version: v0.4.0
+## 📌 Current Version: v0.5.0
 
 Includes:
 
-- CLI dashboard  
-- Logging framework enhancements  
-- Power Manager foundation  
-- Task Manager improvements  
-- Sensor abstraction and simulated sensor  
-- **Dynamic sensor sampling based on power mode (ACTIVE/IDLE/SLEEP/STOP)**  
-- GitHub workflow  
-- Full documentation  
+- CLI dashboard (UART) with clean prompt redraw
+- Runtime log level control + pause/resume
+- Cooperative task scheduler
+- Power manager with **power-mode-dependent sampling**
+- Sensor abstraction layer
+- **TSL2591 (I²C) light sensor backend**
+- **BME280 (SPI2) environmental sensor backend**
+- GitHub Actions CI (compile-only)
+- Updated documentation
 
 ---
 
 ## 🧭 Roadmap (Planned Phases)
 
-- Phase 5 → Real I²C sensor integration  
+- Phase 6 → Real STM32 low-power mode entry/wakeup  
 - Phase 6 → Real STM32 low-power mode entry/wakeup  
 - Phase 7 → Event/state machine on top of tasks  
 - Phase 8 → Flash/SD logging or host-side tooling  

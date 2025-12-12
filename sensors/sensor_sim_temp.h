@@ -1,12 +1,10 @@
 /**
  * @file sensor_sim_temp.h
- * @brief Interface for the simulated temperature sensor.
+ * @brief Interface for the simulated temperature sensor backend.
  *
- * The implementation of this interface is provided in
- * sensor_sim_temp.c and is exposed to the application via
- * Sensor_GetInterface() declared in sensor_if.h.
- *
- * @ingroup sensors
+ * The implementation of this interface is provided in sensor_sim_temp.c.
+ * The application does not call this directly; instead, sensor_if.c
+ * selects this backend when APP_USE_SIMULATED_SENSOR is enabled.
  */
 
 #ifndef SENSOR_SIM_TEMP_H
@@ -18,9 +16,12 @@
 extern "C" {
 #endif
 
-/* No extra API for now; the application uses Sensor_GetInterface()
- * from sensor_if.h to access this implementation.
+/**
+ * @brief Get the SensorIF_t for the simulated temperature sensor.
+ *
+ * @return Pointer to a constant SensorIF_t describing the simulated sensor.
  */
+const SensorIF_t * SensorSimTemp_GetInterface(void);
 
 #ifdef __cplusplus
 }
